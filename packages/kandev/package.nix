@@ -200,7 +200,9 @@ buildGoModule (_finalAttrs: {
     # precedence while letting this upstream test find mktemp and shell tools.
     old_path='"PATH=" + binDir + ":/usr/bin:/bin",'
     sandbox_path='"PATH=" + binDir + ":" + os.Getenv("PATH"),'
-    substituteInPlace apps/backend/internal/agent/agents/devin_acp_test.go \
+    substituteInPlace \
+      apps/backend/internal/agent/agents/devin_acp_test.go \
+      apps/backend/internal/agent/agents/goose_acp_test.go \
       --replace-fail "$old_path" "$sandbox_path"
   '';
 
