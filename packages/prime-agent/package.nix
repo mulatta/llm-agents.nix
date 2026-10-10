@@ -5,12 +5,13 @@
   makeWrapper,
   python3,
   rustPlatform,
-  stdenv,
+  stdenvNoCC,
   versionCheckHook,
   versionCheckHomeHook,
+  extraPythonPackages ? (_: [ ]),
 }:
 
-rustPlatform.buildRustPackage (finalAttrs: {
+stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "prime-agent";
   version = "0.10.0";
 
@@ -22,6 +23,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   };
 
   cargoHash = "sha256-9WPwC4V2SMqCAedx/OKnMWFzRbjs4bq24VuuVnLr4gI=";
+  cargoBuildType = "release";
   cargoBuildFlags = [
     "-p"
     "pa-cli"
@@ -34,10 +36,18 @@ rustPlatform.buildRustPackage (finalAttrs: {
     python3
   ];
 
-  postBuild = ''
+  dontConfigure = true;
+  # The Rust derivation already fixes up the executable.
+  dontStrip = true;
+
+  buildPhase = ''
+    runHook preBuild
+
     python3 scripts/release/bundle_catalog.py generate \
       --catalog-dir ${finalAttrs.passthru.catalogSrc} \
       --out target/catalog-assets
+
+    runHook postBuild
   '';
 
   installPhase = ''
@@ -45,7 +55,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
     packageDir=$out/share/prime-agent
     mkdir -p $out/bin "$packageDir"
-    install -Dm755 target/${stdenv.hostPlatform.rust.cargoShortTarget}/${finalAttrs.cargoBuildType}/prime-agent \
+    install -Dm755 ${finalAttrs.passthru.unwrapped}/bin/prime-agent \
       "$packageDir/prime-agent"
     cp -r prime-agent-runtime skills "$packageDir/"
     install -Dm644 README.md LICENSE target/catalog-assets/*.json \
@@ -68,9 +78,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
     runHook postInstall
   '';
-
-  # Upstream snapshot tests depend on terminal color and width detection.
-  doCheck = false;
 
   doInstallCheck = true;
   nativeInstallCheckInputs = [
@@ -218,6 +225,27 @@ rustPlatform.buildRustPackage (finalAttrs: {
     {
       category = "AI Coding Agents";
 
+      # Keep Python and resource assembly out of the Rust build inputs.
+      unwrapped = rustPlatform.buildRustPackage {
+        pname = "prime-agent-unwrapped";
+        inherit (finalAttrs)
+          version
+          src
+          cargoHash
+          cargoBuildFlags
+          cargoBuildType
+          ;
+
+        # Upstream snapshot tests depend on terminal color and width detection.
+        doCheck = false;
+        doInstallCheck = true;
+        nativeInstallCheckInputs = [
+          versionCheckHook
+          versionCheckHomeHook
+        ];
+        meta = finalAttrs.meta;
+      };
+
       # Bundle a real, immutable catalog; upstream's --fixture is test data.
       catalogSrc = fetchFromGitHub {
         owner = "PrimeIntellect-ai";
@@ -338,6 +366,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
         ])
         ++ [ finalAttrs.passthru.primeAgentRuntime ]
         ++ finalAttrs.passthru.pythonSkills
+        ++ extraPythonPackages ps
       );
     };
 

@@ -170,7 +170,7 @@ def main() -> None:
 
         print("Calculating cargoHash...")
         try:
-            nix_build(PACKAGE_ATTR)
+            nix_build(f"{PACKAGE_ATTR}.unwrapped")
         except NixCommandError as error:
             cargo_hash = extract_hash_from_build_error(str(error))
             if cargo_hash is None:
