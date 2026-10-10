@@ -544,7 +544,10 @@ python3.pkgs.buildPythonApplication {
       "aarch64-linux"
       "aarch64-darwin"
     ];
-    maintainers = with flake.lib.maintainers; [ aliez-ren ];
+    maintainers = with flake.lib.maintainers; [
+      aliez-ren
+      mulatta
+    ];
     mainProgram = "hermes";
   };
 }
